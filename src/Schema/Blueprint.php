@@ -113,5 +113,9 @@ class Blueprint extends \Bosnadev\Database\Schema\Blueprint
     {
         return $this->addCommand('disablePostgis');
     }
+    /*public function index( $columns, $name = null, $algorithm = null ) {
+
+    	return parent::index( $columns, $name = null, $algorithm = null );
+    }*/
 
 }

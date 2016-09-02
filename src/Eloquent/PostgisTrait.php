@@ -4,6 +4,7 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Support\Arr;
 use Phaza\LaravelPostgis\Exceptions\PostgisFieldsNotDefinedException;
 use Phaza\LaravelPostgis\Geometries\Geometry;
+use Phaza\LaravelPostgis\Geometries\GeometryCollection;
 use Phaza\LaravelPostgis\Geometries\GeometryInterface;
 
 trait PostgisTrait
@@ -26,7 +27,7 @@ trait PostgisTrait
         foreach ($this->attributes as $key => $value) {
             if ($value instanceof GeometryInterface && ! $value instanceof GeometryCollection) {
                 $this->geometries[$key] = $value; //Preserve the geometry objects prior to the insert
-                $this->attributes[$key] = $this->getConnection()->raw(sprintf("ST_GeogFromText('%s')", $value->toWKT()));
+                $this->attributes[$key] = $this->getConnection()->raw(sprintf("ST_GeomFromText('%s', 4326)", $value->toWKT()));
             }  else if ($value instanceof GeometryInterface && $value instanceof GeometryCollection) {
                 $this->geometries[$key] = $value; //Preserve the geometry objects prior to the insert
                 $this->attributes[$key] = $this->getConnection()->raw(sprintf("ST_GeomFromText('%s', 4326)", $value->toWKT()));
@@ -47,9 +48,17 @@ trait PostgisTrait
         $pgfields = $this->getPostgisFields();
 
         foreach ($attributes as $attribute => &$value) {
-            if (in_array($attribute, $pgfields) && is_string($value) && strlen($value) >= 15) {
-                $value = Geometry::fromWKB($value);
-            }
+        	if ( in_array( $attribute, $pgfields ) && is_string( $value ) ) {
+        		//it could be wkt or wkb
+		        if ( starts_with($value, '00') || starts_with($value, '01') ) {
+		        	//00, 01 are there to define encoding when using wkb, so it must be wkb
+			        $value = Geometry::fromWKB($value);
+		        } else {
+		        	//it is wkt for sure
+			        $value = Geometry::fromWKT($value);
+		        }
+	        }
+
         }
 
         parent::setRawAttributes($attributes, $sync);
